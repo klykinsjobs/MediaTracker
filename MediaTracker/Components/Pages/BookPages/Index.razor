@@ -1,0 +1,62 @@
+﻿@page "/books"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Data
+@using MediaTracker.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Books</PageTitle>
+
+<h1>Books</h1>
+
+<input type="search" @bind="titleFilter" @bind:event="oninput" />
+
+<p>
+    <a href="books/create">Create New</a>
+</p>
+
+<div>
+    <QuickGrid Class="table" Items="FilteredBooks" Pagination="pagination">
+        <PropertyColumn Property="book => book.Title" Sortable="true" />
+        <PropertyColumn Property="book => book.Author" Sortable="true" />
+        <PropertyColumn Property="book => book.Genre" Sortable="true" />
+        <PropertyColumn Property="book => book.Finished" Sortable="true" />
+        <PropertyColumn Property="book => book.Rating" Sortable="true" />
+
+        <TemplateColumn Context="book">
+            <a href="@($"books/edit?id={book.Id}")">Edit</a> |
+            <a href="@($"books/details?id={book.Id}")">Details</a> |
+            <a href="@($"books/delete?id={book.Id}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<Paginator State="pagination" />
+
+@code {
+    private ApplicationDbContext context = default!;
+
+    private string titleFilter = string.Empty;
+
+    private IQueryable<Book> FilteredBooks =>
+        string.IsNullOrWhiteSpace(titleFilter)
+            ? context.Book.OrderBy(b => b.Title)
+            : context.Book
+                .Where(b =>
+                    b.Title!.Contains(titleFilter) ||
+                    b.Author!.Contains(titleFilter) ||
+                    b.Genre!.Contains(titleFilter) ||
+                    b.Notes!.Contains(titleFilter))
+                .OrderBy(b => b.Title);
+
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 4 };
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

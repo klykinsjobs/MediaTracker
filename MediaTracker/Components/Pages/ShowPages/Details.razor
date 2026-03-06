@@ -1,0 +1,54 @@
+﻿@page "/shows/details"
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Models
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Show</h2>
+    <hr />
+    @if (show is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">Title</dt>
+            <dd class="col-sm-10">@show.Title</dd>
+            <dt class="col-sm-2">Genre</dt>
+            <dd class="col-sm-10">@show.Genre</dd>
+            <dt class="col-sm-2">Finished</dt>
+            <dd class="col-sm-10">@show.Finished</dd>
+            <dt class="col-sm-2">Rating</dt>
+            <dd class="col-sm-10">@show.Rating</dd>
+            <dt class="col-sm-2">Notes</dt>
+            <dd class="col-sm-10">@show.Notes</dd>
+        </dl>
+        <div>
+            <a href="@($"/shows/edit?id={show.Id}")">Edit</a> |
+            <a href="@($"/shows")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Show? show;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        show = await context.Show.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (show is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+}

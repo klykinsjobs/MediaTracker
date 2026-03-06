@@ -1,0 +1,60 @@
+﻿@page "/shows"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Data
+@using MediaTracker.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Shows</PageTitle>
+
+<h1>Shows</h1>
+
+<input type="search" @bind="titleFilter" @bind:event="oninput" />
+
+<p>
+    <a href="shows/create">Create New</a>
+</p>
+
+<div>
+    <QuickGrid Class="table" Items="FilteredShows" Pagination="pagination">
+        <PropertyColumn Property="show => show.Title" Sortable="true" />
+        <PropertyColumn Property="show => show.Genre" Sortable="true" />
+        <PropertyColumn Property="show => show.Finished" Sortable="true" />
+        <PropertyColumn Property="show => show.Rating" Sortable="true" />
+
+        <TemplateColumn Context="show">
+            <a href="@($"shows/edit?id={show.Id}")">Edit</a> |
+            <a href="@($"shows/details?id={show.Id}")">Details</a> |
+            <a href="@($"shows/delete?id={show.Id}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<Paginator State="pagination" />
+
+@code {
+    private ApplicationDbContext context = default!;
+
+    private string titleFilter = string.Empty;
+
+    private IQueryable<Show> FilteredShows =>
+        string.IsNullOrWhiteSpace(titleFilter)
+            ? context.Show.OrderBy(s => s.Title)
+            : context.Show
+                .Where(s =>
+                    s.Title!.Contains(titleFilter) ||
+                    s.Genre!.Contains(titleFilter) ||
+                    s.Notes!.Contains(titleFilter))
+                .OrderBy(s => s.Title);
+
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 4 };
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

@@ -1,0 +1,60 @@
+﻿@page "/games"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Data
+@using MediaTracker.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Games</PageTitle>
+
+<h1>Games</h1>
+
+<input type="search" @bind="titleFilter" @bind:event="oninput" />
+
+<p>
+    <a href="games/create">Create New</a>
+</p>
+
+<div>
+    <QuickGrid Class="table" Items="FilteredGames" Pagination="pagination">
+        <PropertyColumn Property="game => game.Title" Sortable="true" />
+        <PropertyColumn Property="game => game.Genre" Sortable="true" />
+        <PropertyColumn Property="game => game.Finished" Sortable="true" />
+        <PropertyColumn Property="game => game.Rating" Sortable="true" />
+
+        <TemplateColumn Context="game">
+            <a href="@($"games/edit?id={game.Id}")">Edit</a> |
+            <a href="@($"games/details?id={game.Id}")">Details</a> |
+            <a href="@($"games/delete?id={game.Id}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<Paginator State="pagination" />
+
+@code {
+    private ApplicationDbContext context = default!;
+
+    private string titleFilter = string.Empty;
+
+    private IQueryable<Game> FilteredGames =>
+        string.IsNullOrWhiteSpace(titleFilter)
+            ? context.Game.OrderBy(g => g.Title)
+            : context.Game
+                .Where(g =>
+                    g.Title!.Contains(titleFilter) ||
+                    g.Genre!.Contains(titleFilter) ||
+                    g.Notes!.Contains(titleFilter))
+                .OrderBy(g => g.Title);
+
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 4 };
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}
