@@ -1,0 +1,134 @@
+﻿@page "/movies"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Data
+@using MediaTracker.Models
+@implements IAsyncDisposable
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Movies</PageTitle>
+
+<h1>Movies</h1>
+
+<input type="search" @oninput="HandleInput" />
+
+<p>
+    <a href="movies/create">Create New</a>
+</p>
+
+<div>
+    <QuickGrid Class="table" Items="filteredMovies.AsQueryable()" Pagination="pagination">
+        <PropertyColumn Property="movie => movie.Title" Sortable="true" />
+        <PropertyColumn Property="movie => movie.Genre" Sortable="true" />
+        <PropertyColumn Property="movie => movie.Finished" Sortable="true" />
+        <PropertyColumn Property="movie => movie.Rating" Sortable="true" />
+
+        <TemplateColumn Context="movie">
+            <a href="@($"movies/edit?id={movie.Id}")">Edit</a> |
+            <a href="@($"movies/details?id={movie.Id}")">Details</a> |
+            <a href="@($"movies/delete?id={movie.Id}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<Paginator State="pagination" />
+
+@code {
+    private ApplicationDbContext context = default!;
+    private List<Movie> allMovies = new();
+    private List<Movie> filteredMovies = new();
+
+    private string filter = string.Empty;
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 4 };
+
+    private DotNetObjectReference<Index>? dotNetRef;
+    private IJSObjectReference? module;
+    private IJSObjectReference? debounceObj;
+
+    protected override async Task OnInitializedAsync()
+    {
+        context = DbFactory.CreateDbContext();
+
+        // Cache all movies once
+        allMovies = await context.Movie.OrderBy(m => m.Title).ToListAsync();
+
+        // Initial load: show all movies
+        filteredMovies = allMovies;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/MoviePages/Index.razor.js");
+            debounceObj = await module.InvokeAsync<IJSObjectReference>("registerDebounce", dotNetRef, 300);
+        }
+    }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        if (debounceObj is not null)
+        {
+            await debounceObj.InvokeVoidAsync("onInput", e.Value?.ToString() ?? "");
+        }
+    }
+
+    [JSInvokable]
+    public void OnDebouncedInput(string value)
+    {
+        filter = value;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            filteredMovies = allMovies;
+        }
+        else
+        {
+            var f = filter.ToLowerInvariant();
+
+            filteredMovies = allMovies
+                .Where(m =>
+                    (m.Title ?? "").ToLowerInvariant().Contains(f) ||
+                    (m.Genre ?? "").ToLowerInvariant().Contains(f) ||
+                    (m.Notes ?? "").ToLowerInvariant().Contains(f))
+                .OrderBy(m => m.Title)
+                .ToList();
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (debounceObj is not null)
+        {
+            try
+            {
+                await debounceObj.InvokeVoidAsync("dispose");
+                await debounceObj.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+
+        dotNetRef?.Dispose();
+
+        if (module is not null)
+        {
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+
+        if (context is not null)
+            await context.DisposeAsync();
+    }
+}
