@@ -1,0 +1,116 @@
+﻿@page "/shows/edit"
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Models
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+<h2>Show</h2>
+<hr />
+@if (Show is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="Show" OnValidSubmit="UpdateShow" FormName="edit" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary role="alert"/>
+                <input type="hidden" name="Show.Id" value="@Show.Id" />
+                <div class="mb-3">
+                <span class="text-danger">*</span>
+                    <label for="title" class="form-label">Title:</label>
+                    <InputText id="title" @bind-Value="Show.Title" class="form-control" aria-required="true"/>
+                    <ValidationMessage For="() => Show.Title" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="genre" class="form-label">Genre:</label>
+                    <InputText id="genre" @bind-Value="Show.Genre" class="form-control" />
+                    <ValidationMessage For="() => Show.Genre" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="finished" class="form-label">Finished:</label>
+                    <InputCheckbox id="finished" @bind-Value="Show.Finished" class="form-check-input" />
+                    <ValidationMessage For="() => Show.Finished" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="rating" class="form-label">Rating:</label>
+                    <InputSelect id="rating" @bind-Value="Show.Rating" class="form-control">
+                        <option value="">-- None --</option>
+                        @for (int i = 1; i <= 10; i++)
+                        {
+                            <option value="@i">@i</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => Show.Rating" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes:</label>
+                    <InputTextArea id="notes" @bind-Value="Show.Notes" class="form-control" Rows="6" />
+                    <ValidationMessage For="() => Show.Notes" class="text-danger" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div>
+    <a href="/shows">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Show? Show { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Show ??= await context.Show.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (Show is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateShow()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Show!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!ShowExists(Show!.Id))
+            {
+                NavigationManager.NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/shows");
+    }
+
+    private bool ShowExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Show.Any(e => e.Id == id);
+    }
+}

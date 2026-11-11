@@ -1,0 +1,53 @@
+﻿using Microsoft.EntityFrameworkCore;
+using MediaTracker.Components;
+using MediaTracker.Data;
+
+namespace MediaTracker
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("ApplicationDbContext") ?? throw new InvalidOperationException("Connection string 'ApplicationDbContext' not found.")));
+
+            builder.Services.AddQuickGridEntityFrameworkAdapter();
+
+            builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+            // Add services to the container.
+            builder.Services.AddRazorComponents()
+                .AddInteractiveServerComponents();
+
+            var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+
+                SeedData.Initialize(services);
+            }
+
+            // Configure the HTTP request pipeline.
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseExceptionHandler("/Error");
+                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+                app.UseHsts();
+                app.UseMigrationsEndPoint();
+            }
+
+            app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+            app.UseHttpsRedirection();
+
+            app.UseAntiforgery();
+
+            app.MapStaticAssets();
+            app.MapRazorComponents<App>()
+                .AddInteractiveServerRenderMode();
+
+            app.Run();
+        }
+    }
+}

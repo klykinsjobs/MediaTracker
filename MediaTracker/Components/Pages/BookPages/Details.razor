@@ -1,0 +1,56 @@
+﻿@page "/books/details"
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Models
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    <h2>Book</h2>
+    <hr />
+    @if (book is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">Title</dt>
+            <dd class="col-sm-10">@book.Title</dd>
+            <dt class="col-sm-2">Author</dt>
+            <dd class="col-sm-10">@book.Author</dd>
+            <dt class="col-sm-2">Genre</dt>
+            <dd class="col-sm-10">@book.Genre</dd>
+            <dt class="col-sm-2">Finished</dt>
+            <dd class="col-sm-10">@book.Finished</dd>
+            <dt class="col-sm-2">Rating</dt>
+            <dd class="col-sm-10">@book.Rating</dd>
+            <dt class="col-sm-2">Notes</dt>
+            <dd class="col-sm-10">@book.Notes</dd>
+        </dl>
+        <div>
+            <a href="@($"/books/edit?id={book.Id}")">Edit</a> |
+            <a href="@($"/books")">Back to List</a>
+        </div>
+    }
+</div>
+
+@code {
+    private Book? book;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        book = await context.Book.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (book is null)
+        {
+            NavigationManager.NotFound();
+        }
+    }
+}

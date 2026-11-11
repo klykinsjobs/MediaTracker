@@ -1,0 +1,81 @@
+﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using MediaTracker.Data
+@using MediaTracker.Dtos
+@using MediaTracker.Models
+@inject IDbContextFactory<MediaTracker.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Home</PageTitle>
+
+<h1>Dashboard</h1>
+
+<div class="dashboard">
+    <div class="card">
+        <h3>Books</h3>
+        <p>Finished: @booksFinished</p>
+        <p>Not Finished: @booksNotFinished</p>
+    </div>
+
+    <div class="card">
+        <h3>Games</h3>
+        <p>Finished: @gamesFinished</p>
+        <p>Not Finished: @gamesNotFinished</p>
+    </div>
+
+    <div class="card">
+        <h3>Shows</h3>
+        <p>Finished: @showsFinished</p>
+        <p>Not Finished: @showsNotFinished</p>
+    </div>
+
+    <div class="card">
+        <h3>Movies</h3>
+        <p>Finished: @moviesFinished</p>
+        <p>Not Finished: @moviesNotFinished</p>
+    </div>
+</div>
+
+@code {
+    private int booksFinished;
+    private int booksNotFinished;
+
+    private int gamesFinished;
+    private int gamesNotFinished;
+
+    private int showsFinished;
+    private int showsNotFinished;
+
+    private int moviesFinished;
+    private int moviesNotFinished;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+
+        var result = await context.Database
+            .SqlQueryRaw<CountsDto>(@"
+                SELECT
+                    (SELECT COUNT(*) FROM Book WHERE Finished = 1) AS BooksFinished,
+                    (SELECT COUNT(*) FROM Book WHERE Finished = 0) AS BooksNotFinished,
+                    (SELECT COUNT(*) FROM Game WHERE Finished = 1) AS GamesFinished,
+                    (SELECT COUNT(*) FROM Game WHERE Finished = 0) AS GamesNotFinished,
+                    (SELECT COUNT(*) FROM Show WHERE Finished = 1) AS ShowsFinished,
+                    (SELECT COUNT(*) FROM Show WHERE Finished = 0) AS ShowsNotFinished,
+                    (SELECT COUNT(*) FROM Movie WHERE Finished = 1) AS MoviesFinished,
+                    (SELECT COUNT(*) FROM Movie WHERE Finished = 0) AS MoviesNotFinished
+                ")
+            .SingleAsync();
+
+        booksFinished = result.BooksFinished;
+        booksNotFinished = result.BooksNotFinished;
+
+        gamesFinished = result.GamesFinished;
+        gamesNotFinished = result.GamesNotFinished;
+
+        showsFinished = result.ShowsFinished;
+        showsNotFinished = result.ShowsNotFinished;
+
+        moviesFinished = result.MoviesFinished;
+        moviesNotFinished = result.MoviesNotFinished;
+    }
+}
